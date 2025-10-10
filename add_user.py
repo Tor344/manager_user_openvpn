@@ -1,126 +1,108 @@
 #!/usr/bin/env python3
 """
-create_openvpn_user.py
-
-Пример: python3 create_openvpn_user.py --name alice --easyrsa /etc/openvpn/easy-rsa --template ./client-template.ovpn --out /root/ovpns
+Автоматическое создание клиента OpenVPN и сборка .ovpn файла.
+Требует: easy-rsa (с pki в указанной папке).
 """
 
-import argparse
 import subprocess
 import os
 import shutil
-import sys
-from datetime import datetime
+from pathlib import Path
 
-def run(cmd, cwd=None, check=True):
-    print(">>", " ".join(cmd))
-    return subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check)
+# ---------- НАСТРОЙКИ (отредактируйте под ваш сервер) ----------
+EASYRSA_DIR = Path("/etc/openvpn/easy-rsa")   # где лежит easy-rsa и pki
+PKI_DIR = EASYRSA_DIR / "pki"
+OUTPUT_DIR = Path("/root/ovpn_out")           # куда складывать .ovpn
+SERVER_ADDR = "vpn.example.com"               # адрес/домен сервера
+SERVER_PORT = 1194
+PROTO = "udp"
+DEV = "tun"
+CIPHER = "AES-256-CBC"                        # пример
+AUTH = "SHA256"
+TLS_AUTH = True                               # True если используете ta.key
+TA_KEY_PATH = Path("/etc/openvpn/ta.key")     # путь к ta.key (если есть)
+# ---------------------------------------------------------------
 
-def ensure_dir(path):
-    os.makedirs(path, exist_ok=True)
+def run_easyrsa_build_client(username: str):
+    cmd = [str(EASYRSA_DIR / "easyrsa"), "build-client-full", username, "nopass"]
+    print("Running:", " ".join(cmd))
+    subprocess.run(cmd, cwd=EASYRSA_DIR, check=True)
 
-def file_contents(path):
+def read_text(path: Path) -> str:
     with open(path, "r") as f:
         return f.read()
 
-def create_client(easyrsa_dir, name, nopass=True):
-    easyrsa_bin = os.path.join(easyrsa_dir, "easyrsa")
-    if not os.path.exists(easyrsa_bin):
-        # иногда easyrsa вызывают из /usr/share/easy-rsa/easyrsa
-        easyrsa_bin = "easyrsa"  # надеемся на PATH
-    cmd = [easyrsa_bin, "build-client-full", name]
-    if nopass:
-        cmd.append("nopass")
-    # запуск из директории easy-rsa (важно, чтобы PKI путями совпадали)
-    return run(cmd, cwd=easyrsa_dir)
+def build_ovpn(username: str) -> str:
+    # пути в PKI
+    ca = PKI_DIR / "ca.crt"
+    cert = PKI_DIR / "issued" / f"{username}.crt"
+    key = PKI_DIR / "private" / f"{username}.key"
+    ta = TA_KEY_PATH if TLS_AUTH else None
 
-def assemble_ovpn(template_path, ca_path, cert_path, key_path, ta_path=None):
-    tpl = file_contents(template_path)
-    ca = file_contents(ca_path)
-    cert = file_contents(cert_path)
-    key = file_contents(key_path)
-    out = tpl
-    # Вставим CA, CERT, KEY в блоки
-    out += "\n\n<ca>\n" + ca.strip() + "\n</ca>\n"
-    out += "<cert>\n" + cert.strip() + "\n</cert>\n"
-    out += "<key>\n" + key.strip() + "\n</key>\n"
-    if ta_path and os.path.exists(ta_path):
-        ta = file_contents(ta_path)
-        out += "<tls-auth>\n" + ta.strip() + "\n</tls-auth>\n"
-    return out
+    if not (ca.exists() and cert.exists() and key.exists()):
+        raise FileNotFoundError("Не найден один из файлов CA/CRT/KEY в pki")
 
-def main():
-    p = argparse.ArgumentParser(description="Создать клиента OpenVPN (easy-rsa 3) и собрать .ovpn")
-    p.add_argument("--name", required=True, help="Имя клиента (CN)")
-    p.add_argument("--easyrsa", required=False, default="/etc/openvpn/easy-rsa",
-                   help="Папка easy-rsa (с pki). Пример: /etc/openvpn/easy-rsa")
-    p.add_argument("--template", required=False, default="./client-template.ovpn",
-                   help="Путь к шаблону клиента .ovpn (см. пример ниже)")
-    p.add_argument("--out", required=False, default="./out_ovpns", help="Куда положить готовые .ovpn")
-    p.add_argument("--nopass", action="store_true", default=True, help="Генерировать ключ без пароля (по умолчанию)")
-    args = p.parse_args()
+    ca_txt = read_text(ca)
+    cert_txt = read_text(cert)
+    key_txt = read_text(key)
+    ta_txt = read_text(ta) if ta and ta.exists() else None
 
-    name = args.name
-    easyrsa_dir = args.easyrsa
-    template = args.template
-    out_dir = args.out
-    nopass = args.nopass
+    template = f"""
+client
+dev {DEV}
+proto {PROTO}
+remote {SERVER_ADDR} {SERVER_PORT}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher {CIPHER}
+auth {AUTH}
+verb 3
+# optionally add: setenv opt block-outside-dns (for windows)
+<ca>
+{ca_txt.strip()}
+</ca>
 
-    # Проверки
-    if not os.path.isdir(easyrsa_dir):
-        print("Ошибка: easy-rsa папка не найдена:", easyrsa_dir, file=sys.stderr)
-        sys.exit(2)
-    pki_dir = os.path.join(easyrsa_dir, "pki")
-    if not os.path.isdir(pki_dir):
-        print("Ошибка: PKI (pki) не найдена в:", pki_dir, file=sys.stderr)
-        sys.exit(2)
-    ensure_dir(out_dir)
+<cert>
+{cert_txt.strip()}
+</cert>
 
-    cert_path = os.path.join(pki_dir, "issued", f"{name}.crt")
-    key_path = os.path.join(pki_dir, "private", f"{name}.key")
-    ca_path = os.path.join(pki_dir, "ca.crt")
-    ta_path_candidates = [
-        os.path.join("/etc/openvpn", "ta.key"),
-        os.path.join(easyrsa_dir, "ta.key"),
-        os.path.join(pki_dir, "ta.key"),
-    ]
-    ta_path = None
-    for cand in ta_path_candidates:
-        if os.path.exists(cand):
-            ta_path = cand
-            break
+<key>
+{key_txt.strip()}
+</key>
+"""
+    if ta_txt:
+        template += f"""
+<tls-auth>
+{ta_txt.strip()}
+</tls-auth>
+key-direction 1
+"""
+    return template.strip() + "\n"
 
-    if os.path.exists(cert_path) or os.path.exists(key_path):
-        print(f"Клиент {name} уже существует (найдены cert/key). Выход.")
-        sys.exit(1)
+def ensure_output_dir():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 1) Создаём клиента (easyrsa)
-    try:
-        res = create_client(easyrsa_dir, name, nopass=nopass)
-    except subprocess.CalledProcessError as e:
-        print("Ошибка при запуске easyrsa:", e.stderr, file=sys.stderr)
-        sys.exit(3)
-    print("easyrsa output:", res.stdout)
+def main(username: str):
+    ensure_output_dir()
+    # 1) Создать клиента через easy-rsa
+    run_easyrsa_build_client(username)
 
-    # Проверяем что после команды появились файлы
-    if not (os.path.exists(cert_path) and os.path.exists(key_path) and os.path.exists(ca_path)):
-        print("Не удалось найти одно из необходимых файлов (cert/key/ca).", file=sys.stderr)
-        sys.exit(4)
-
-    # 2) Сборка .ovpn
-    if not os.path.exists(template):
-        print("Шаблон .ovpn не найден:", template, file=sys.stderr)
-        sys.exit(5)
-
-    ovpn_content = assemble_ovpn(template, ca_path, cert_path, key_path, ta_path)
-
-    out_file = os.path.join(out_dir, f"{name}.ovpn")
+    # 2) Собрать .ovpn
+    ovpn_content = build_ovpn(username)
+    out_file = OUTPUT_DIR / f"{username}.ovpn"
     with open(out_file, "w") as f:
-        f.write("# Generated: " + datetime.utcnow().isoformat() + "Z\n")
         f.write(ovpn_content)
-
-    print("Готово. .ovpn сохранён в:", out_file)
-    print("Совет: выдавайте .ovpn пользователю по защищённому каналу (scp/sftp), не через e-mail в открытом виде.")
+    print("Сгенерирован файл:", out_file)
+    # поменяйте права, чтобы приватный ключ был защищён
+    os.chmod(out_file, 0o600)
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) != 2:
+        print("Использование: python3 make_client.py <username>")
+        sys.exit(2)
+    username = sys.argv[1]
+    main(username)
