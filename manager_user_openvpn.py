@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 
 TEMPLATES = """
 proto tcp-client
@@ -35,6 +36,7 @@ verb 3
 EASY_RSA_PATH = "/etc/openvpn/easy-rsa"
 
 def add_user(name_user:str)->str:
+    pdb.set_trace()
     try:
         subprocess.run(["easyrsa", "gen-req", name_user, "nopass",], cwd=EASY_RSA_PATH, input= b"\n")
         subprocess.run(["easyrsa", "sign-req", "client", name_user, ], cwd=EASY_RSA_PATH, input= b"yes")
@@ -60,17 +62,22 @@ def delete_user(name_user:str)->None:
 def manager_user_openvpn():
     name_user = input("Enter your name: ")
     actin = input("1.add or 2.delete user?\n>>")
-    if actin == "add":
-        data_openvpn = add_user(name_user)
+    while True:
+        if actin == "add":
+            data_openvpn = add_user(name_user)
 
-        with open(f"{name_user}.ovpn", "w") as f:
-            f.write(data_openvpn)
+            with open(f"{name_user}.ovpn", "w") as f:
+                f.write(data_openvpn)
 
-        print(f"File is in path: {os.getcwd()}{name_user}.ovpn")
+            print(f"File is in path: {os.getcwd()}{name_user}.ovpn")
 
-    elif actin == "delete":
-        delete_user(name_user)
+        elif actin == "delete":
+            delete_user(name_user)
 
+        elif actin == "exit":
+            sys.exit(0)
+        else:
+            print("Unknown action")
 
 
 
