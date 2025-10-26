@@ -36,16 +36,15 @@ verb 3
 EASY_RSA_PATH = "/etc/openvpn/easy-rsa"
 
 def add_user(name_user:str)->str:
-    pdb.set_trace()
     try:
         subprocess.run(["easyrsa", "gen-req", name_user, "nopass",], cwd=EASY_RSA_PATH, input= b"\n")
-        subprocess.run(["easyrsa", "sign-req", "client", name_user, ], cwd=EASY_RSA_PATH, input= b"yes")
+        subprocess.run(["easyrsa", "sign-req", "client", name_user ], cwd=EASY_RSA_PATH, input= b"yes")
 
-        with open("/etc/openvpn/easy-rsa/pki/ca.crt", "r") as f:
+        with open(f"{EASY_RSA_PATH}/pki/ca.crt", "r") as f:
             ca = f.read()
-        with open(f"/etc/openvpn/easy-rsa/pki/issued/{name_user}.crt","r") as f:
+        with open(f"{EASY_RSA_PATH}/pki/issued/{name_user}.crt","r") as f:
             cert = f.read()
-        with open(f"/etc/openvpn/easy-rsa/pki/private/{name_user}.key") as f:
+        with open(f"{EASY_RSA_PATH}/pki/private/{name_user}.key","r") as f:
             key = f.read()
 
         data_openvpn = TEMPLATES.format(ca=ca, cert=cert, key=key)
@@ -69,7 +68,7 @@ def manager_user_openvpn():
             with open(f"{name_user}.ovpn", "w") as f:
                 f.write(data_openvpn)
 
-            print(f"File is in path: {os.getcwd()}{name_user}.ovpn")
+            print(f"File is in path: {os.getcwd()}/{name_user}.ovpn")
 
         elif actin == "delete":
             delete_user(name_user)
