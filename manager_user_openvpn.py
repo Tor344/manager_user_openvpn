@@ -37,8 +37,8 @@ EASY_RSA_PATH = "/etc/openvpn/easy-rsa"
 
 def add_user(name_user:str)->str:
     try:
-        subprocess.run(["easyrsa", "gen-req", name_user, "nopass",], cwd=EASY_RSA_PATH, input= b"\n")
-        subprocess.run(["easyrsa", "sign-req", "client", name_user ], cwd=EASY_RSA_PATH, input= b"yes")
+        subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "gen-req", name_user, "nopass",] , input= b"\n")
+        subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "sign-req", "client", name_user ], input= b"yes")
 
         with open(f"{EASY_RSA_PATH}/pki/ca.crt", "r") as f:
             ca = f.read()
@@ -60,8 +60,8 @@ def delete_user(name_user:str)->None:
 
 def manager_user_openvpn():
     name_user = input("Enter your name: ")
-    actin = input("1.add or 2.delete user?\n>>")
     while True:
+        actin = input("1.add or 2.delete user?\n>>")
         if actin == "add":
             data_openvpn = add_user(name_user)
 
