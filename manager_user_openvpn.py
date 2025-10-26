@@ -40,8 +40,8 @@ EASY_RSA_PATH = "/etc/openvpn/easy-rsa"
 
 def add_user(name_user:str)->str:
     try:
-        subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "gen-req", name_user, "nopass",] , input= b"\n")
-        subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "sign-req", "client", name_user ], input= b"yes")
+        subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "gen-req", name_user, "nopass",] , input= b"\n", cwd=EASY_RSA_PATH)
+        subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "sign-req", "client", name_user ], input= b"yes",cwd=EASY_RSA_PATH)
 
         with open(f"{EASY_RSA_PATH}/pki/ca.crt", "r") as f:
             ca = f.read()
