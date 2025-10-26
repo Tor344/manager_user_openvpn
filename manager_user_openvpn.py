@@ -31,6 +31,9 @@ verb 3
 <key>
 {key}
 </key>
+<tls-crypt>
+{tls_crypt}
+</tls-crypt>
 """
 
 EASY_RSA_PATH = "/etc/openvpn/easy-rsa"
@@ -46,8 +49,11 @@ def add_user(name_user:str)->str:
             cert = f.read()
         with open(f"{EASY_RSA_PATH}/pki/private/{name_user}.key","r") as f:
             key = f.read()
+        with open(f"/etc/openvpn/ta.key","r") as f:
+            tls_crypt = f.read()
 
-        data_openvpn = TEMPLATES.format(ca=ca, cert=cert, key=key)
+        data_openvpn = TEMPLATES.format(ca=ca, cert=cert, key=key,tls_crypt=tls_crypt)
+
         return data_openvpn
 
     except Exception as e:
