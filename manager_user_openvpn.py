@@ -49,8 +49,11 @@ def add_user(name_user:str)->str:
     return data_openvpn
 
 
+
 def delete_user(name_user:str)->None:
-    pass
+    subprocess.run(["EASY_RSA_PATH}/easyrsa", "revoke", name_user], input= b"yes",cwd=EASY_RSA_PATH)
+    subprocess.run(["EASY_RSA_PATH}/easyrsa", "gen-crl"] ,cwd=EASY_RSA_PATH)
+    subprocess.run(["pkill", "-HUP", "openvpn"])
 
 
 def manager_user_openvpn():
