@@ -60,14 +60,25 @@ def add_user(name_user:str)->str:
         print(e)
         return ""
 
+
 def delete_user(name_user:str)->None:
-    pass
+    subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "revoke", name_user], input= b"yes",cwd=EASY_RSA_PATH)
+    subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "gen-crl"] ,cwd=EASY_RSA_PATH)
+    subprocess.run(["pkill", "-HUP", "openvpn"])
+
+
+def show_users()->None:
+    files_users = os.listdir(EASY_RSA_PATH + "/pki/inline")
+
+    for file in files_users:
+        user_name = file.split(".")[0]
+        print(user_name)
 
 
 def manager_user_openvpn():
     name_user = input("Enter your name: ")
     while True:
-        actin = input("1.add or 2.delete user?\n>>")
+        actin = input("1.add or 2.delete or 3.show user?\n3.>>")
         if actin == "add":
             data_openvpn = add_user(name_user)
 
@@ -79,6 +90,8 @@ def manager_user_openvpn():
         elif actin == "delete":
             delete_user(name_user)
 
+        elif actin == "show":
+            show_users()
         elif actin == "exit":
             sys.exit(0)
         else:
