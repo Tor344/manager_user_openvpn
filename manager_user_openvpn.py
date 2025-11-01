@@ -64,6 +64,9 @@ def delete_user(name_user:str)->None:
     pass
 
 
+def show_users(name_users:str)->None:
+    pass
+
 def manager_user_openvpn():
     name_user = input("Enter your name: ")
     while True:
