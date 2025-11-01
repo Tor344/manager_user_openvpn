@@ -64,8 +64,13 @@ def delete_user(name_user:str)->None:
     pass
 
 
-def show_users(name_users:str)->None:
-    pass
+def show_users()->None:
+    files_users = os.listdir(EASY_RSA_PATH + "pki/inline")
+
+    for file in files_users:
+        user_name = file.split(".")[0]
+        print(user_name)
+
 
 def manager_user_openvpn():
     name_user = input("Enter your name: ")
