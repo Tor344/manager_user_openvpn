@@ -65,7 +65,7 @@ def delete_user(name_user:str)->None:
 
 
 def show_users()->None:
-    files_users = os.listdir(EASY_RSA_PATH + "pki/inline")
+    files_users = os.listdir(EASY_RSA_PATH + "/pki/inline")
 
     for file in files_users:
         user_name = file.split(".")[0]
