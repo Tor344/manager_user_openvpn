@@ -75,7 +75,7 @@ def show_users()->None:
 def manager_user_openvpn():
     name_user = input("Enter your name: ")
     while True:
-        actin = input("1.add or 2.delete user?\n>>")
+        actin = input("1.add or 2.delete or 3.show user?\n3.>>")
         if actin == "add":
             data_openvpn = add_user(name_user)
 
@@ -87,6 +87,8 @@ def manager_user_openvpn():
         elif actin == "delete":
             delete_user(name_user)
 
+        elif actin == "show":
+            show_users()
         elif actin == "exit":
             sys.exit(0)
         else:
