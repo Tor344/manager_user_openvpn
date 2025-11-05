@@ -3,6 +3,7 @@ import os
 import sys
 
 TEMPLATES = """
+client
 proto tcp-client
 remote 23.177.185.179 1194
 dev tun
