@@ -1,18 +1,19 @@
 import subprocess
 import os
 import sys
+import urllib.request
 
 TEMPLATES = """
 client
 proto tcp-client
-remote 23.177.185.179 1194
+remote {ip_address} 1194
 dev tun
 resolv-retry infinite
 nobind
 persist-key
 persist-tun
 remote-cert-tls server
-verify-x509-name server_WwCKfMPF7IEi08EA name
+verify-x509-name {name_server} name
 auth SHA256
 auth-nocache
 cipher AES-128-GCM
@@ -43,7 +44,14 @@ def add_user(name_user:str)->str:
     try:
         subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "gen-req", name_user, "nopass",] , input= b"\n", cwd=EASY_RSA_PATH)
         subprocess.run([f"{EASY_RSA_PATH}/easyrsa", "sign-req", "client", name_user ], input= b"yes",cwd=EASY_RSA_PATH)
-
+        ip_address = urllib.request.urlopen('https://ifconfig.me/ip').read().decode('utf-8').strip()
+        with open("/etc/openvpn/server.conf", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("cert "):
+                    # Получаем все, что после "cert "
+                    name_server = line[len("cert "):]
+                    break
         with open(f"{EASY_RSA_PATH}/pki/ca.crt", "r") as f:
             ca = f.read()
         with open(f"{EASY_RSA_PATH}/pki/issued/{name_user}.crt","r") as f:
@@ -53,7 +61,7 @@ def add_user(name_user:str)->str:
         with open(f"/etc/openvpn/tls-crypt.key","r") as f:
             tls_crypt = f.read()
 
-        data_openvpn = TEMPLATES.format(ca=ca, cert=cert, key=key,tls_crypt=tls_crypt)
+        data_openvpn = TEMPLATES.format(ip_address=ip_address,name_server=name_server, ca=ca, cert=cert, key=key,tls_crypt=tls_crypt)
 
         return data_openvpn
 
