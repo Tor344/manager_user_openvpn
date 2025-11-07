@@ -49,8 +49,7 @@ def add_user(name_user:str)->str:
             for line in f:
                 line = line.strip()
                 if line.startswith("cert "):
-                    # Получаем все, что после "cert "
-                    name_server = line[len("cert "):]
+                    name_server = line[len("cert "):].removesuffix(".crt")
                     break
         with open(f"{EASY_RSA_PATH}/pki/ca.crt", "r") as f:
             ca = f.read()
